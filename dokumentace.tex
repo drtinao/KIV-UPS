@@ -1,0 +1,538 @@
+\documentclass[12pt, a4paper, pdftex, czech, titlepage]{report}
+
+\usepackage[czech]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{textcomp}
+\usepackage[T1]{fontenc}
+\usepackage{amsfonts}
+\usepackage{titlesec}
+\usepackage{graphicx}
+\usepackage{indentfirst}
+\usepackage{grffile}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\lstset{
+  language=C,               
+  numbers=left,              
+  stepnumber=1,                         
+  numbersep=5pt,                  
+  backgroundcolor=\color{white},  
+  showspaces=false,              
+  showstringspaces=false,       
+  showtabs=false,                
+  tabsize=2,                    
+  captionpos=b,               
+  breaklines=true,           
+  breakatwhitespace=true,         
+  title=\lstname    
+}
+
+\titleformat{\chapter}
+  {\normalfont\LARGE\bfseries}{\thechapter}{1em}{}
+\titlespacing*{\chapter}{0pt}{0ex plus 1ex minus .2ex}{2.0ex plus .2ex}
+
+\begin{document}
+
+\begin{titlepage}
+	\vspace*{-2cm}
+	{\centering\includegraphics[width=\textwidth]{logo.jpg}\par}
+	\centering
+	\vspace*{2cm}
+	{\Large Semestrální práce - hra pro více hráčů (Prší)\par}
+	\vspace{1.5cm}
+	{\Huge\bfseries Úvod do počítačových sítí\par}
+	\vspace{7cm}
+
+		
+	{\Large Ondřej Drtina\par}
+	{\Large A17B0202P\par}
+	{\Large drtinao@students.zcu.cz\par}
+	\vfill
+\end{titlepage}
+
+\tableofcontents
+\thispagestyle{empty}
+\clearpage
+
+\chapter{Zadání}
+Cílem semestrální práce v rámci předmětu UPS bylo vytvořit síťovou hru pro více hráčů.
+Konkrétní hru si mohl student po konzultaci s příslušným cvičícím zvolit,
+avšak i přesto byla stanovena určitá pravidla pro její tvorbu. Vzhledem k tomu,
+že práce zahrnuje tvorbu herního serveru i klienta, lze požadavky rozdělit do dvou
+sekcí.
+\section{Požadavky na server}
+Herní server musí splňovat zejména následující požadavky:
+
+\begin{itemize}
+\item musí být napsán v nízkoúrovňovém programovacím jazyce (C / C++)
+\item je schopný obsluhy více klientů současně
+\item možnost znovu navázet komunikaci s klientem po výpadku spojení a umožnění pokračování ve hře
+\end{itemize}
+
+\section{Požadavky na klienta}
+Herní klient musí splňovat následující požadavky:
+
+\begin{itemize}
+\item psán ve vysokoúrovňovém programovacím jazyce (Java / Unity)
+\item disponování grafickým uživatelským rozhraním
+\item kompatibilita s Windows i Linux
+\item možnost práce s herními místnostmi (lobby)
+
+\end{itemize}
+
+\section{Společné požadavky}
+Některé z požadavků jsou shodné pro serverovou i klientskou část aplikace, například:
+
+\begin{itemize}
+\item komunikace pomocí protokolu TCP (bez zabezpečení)
+\item řešení výpadků komunikace (oznámení a patřičná reakce při odpojení klienta / serveru)
+\item možnost automatického překladu (make, Ant, Maven)
+\item odolnost vůči nevalidním zprávám
+\end{itemize}
+
+\section{Celé znění úlohy}
+Celé zadání úlohy je možno nalézt online \href{https://courseware.zcu.cz/portal/studium/courseware/kiv/ups/samostatna-prace.html}{zde}.
+\vspace{0,5 cm}
+
+\chapter{Analýza problému}
+Řešení úlohy vyžadovalo především nastudování způsobu komunikace pomocí
+soketů. Následně pak bylo nutno vyhodnotit možné způsoby implementace tohoto typu komunikace
+v rámci jazyků, jež byly použity pro tvorbu hry (v mém případě Java a C). Další
+kroky učiněné v rámci analýzy lze rozdělit do dvou kategorií - viz podkapitoly).
+
+\section{Herní klient}
+Tvorba herního klienta nevyžadovala příliš analytické činnosti, jelikož jsem se klienta
+rozhodl vytvořit v jazyce Java (s vyžitím knihoven AWT / Swing). Zmíněný
+programovací jazyk jsem již pro pár prací použil a jsem tedy obeznámen se
+syntaxí běžně užívaných příkazů tohoto jazyka. Zřejmě jediné možné úskalí 
+jsem tedy v době analýzy viděl pouze v komunikaci prostřednictvím soketů.
+Rychle se však ukázalo, že v případě Javy je řešení síťové komunikace poměrně jednoduchou záležitostí
+i pro začátečníka a vyžaduje minimální režii ze strany programátora.
+
+\section{Herní server}
+Ve srovnání s herním klientem vyžadovala tvorba herního serveru o poznání delší čas strávený
+analýzou. Tento fakt přikládám zejména skutečnosti, že herní server musel být vytvořen
+v nízkoúrovňovém jazyce (např. C), se kterým pracuji pouze výjimečně a mnoho konstrukcí
+jazyka jsem si musel před zahájením tvorby programu připomenout. Samotnou kapitolu
+lze pak vyčlenit pro síťovou komunikaci, jejíž implementace je v případě jazyka C
+o poznání složitější záležitostí (ve srovnání s Javou).
+
+\subsection{Síťová komunikace}
+Již při analýze jsem zjistil, že obsluhu požadavků klientů bude možno v rámci
+jazyka C řešit dvěma způsoby. Jedno z možných řešení spočívalo ve využití
+příkazu fork() (vytvoření nového vlákna), jež by byl volán při každém připojení nového
+klienta. Tento způsob se mi příliš nezamlouval, jelikož při větším počtu připojených klientů
+by velice pravděpodobně vedl k velkému vytížení serveru (hodně vláken
+běžících současně) a mohl by vést k nepřehlednosti během ladění programu.
+
+Rozhodl jsem se tedy využít příkazu select(), jež nevyžaduje
+vytváření dalšího vlákna při připojení nového klienta a umožňuje
+obsluhu více klientů v rámci jednoho vlákna. Více informací viz kapitola
+zabývající se implementací.
+
+\chapter{Popis implementace (programátorská dokumentace)}
+Jelikož během práce byl vytvářen herní server i klient (každý v jiném programovacím jazyce),
+rozhodl jsem se popis implementace rozdělit do tří částí. V rámci první
+části je popsán protokol, jež jsem pro hru vytvořil a pomocí kterého
+si klient vyměňuje zprávy s herním serverem. Druhá sekce textu obsahuje popis implementace serveru - zde
+je například popsán způsob ochrany serveru proti narušitelům atd. Další část textu pojednává o
+klientské části aplikace.
+
+\section{Komunikační protokol}
+Při návrhu komunikačního protokolu jsem snažil snoubit bezpečnost s jednoduchostí
+- validní zprávy mají jasně definovanou délku, ve většině případů i obsah.
+Každá validní zpráva v rámci programu musí začínat znakem "\#" a končit
+znakem "?".
+
+\subsection{Rozdělení hry na fáze}
+Hra je z pohledu serveru dělena do čtyř fází. Server si uchovává pro každého připojeného hráče strukturu, v rámci
+níž jsou uvedeny informace o fázi hry, ve které se hráč nachází. Ve struktuře 
+je uvedena i IP adresa hráče, která slouží jako jednoznačný identifikační
+údaj.
+
+\subsection{Ochrana vůči narušitelům}
+Rozklad hry na jednotlivé fáze je také základní stavební kámen obranného mechanismu mého serveru.
+Každá fáze hry má totiž jasně definované zprávy, které jsou v dané fázi validní.
+Tuto skutečnost je možno rovněž chápat jako bezpečnostní opatření, jelikož pro každou fázi hry jsou jasně definované
+validní zprávy, které mohou od klienta přijít. Pokud přijde od libovolného klienta 
+zpráva, jež neodpovídá požadavkům (délka či obsah), pak dojde k odpojení daného klienta.
+
+\subsection{Zprávy předávané v 1. fázi hry}
+V první fázi hry se uživatel nachází, pokud klient
+úspěšně navázal spojení se serverem. V této fázi
+je za validní považován pouze jeden typ zpráv.
+
+\subsubsection{Zpráva s délkou 17B - přezdívka}
+Pokud klient v první fázi pošle zprávu o délce 17B,
+je její obsah požadován za jméno hráče (15 znaků). 
+
+Požadavky: jméno hráče musí být uvedeno bez diakritiky a nesmí obsahovat
+znak procenta (procenta doplňuje klientská aplikace do délky 15 znaků).
+
+Formát zprávy: "\#xxxxxxxxxxxxxxx?", kde x = písmeno obsažené v přezdívce uživatele
+
+Odpověď serveru:
+\begin{itemize}
+\item SERVER\_WRITE\_RECEIVED\_OK ("\#99?") = server jméno přijal, úspěch => 2. fáze hry
+\item SERVER\_WRITE\_RECEIVED\_FAIL ("\#98?") = zpráva od klienta je nevalidní (chybí počáteční nebo ukončovací znak), chyba
+\end{itemize}
+
+\subsection{Zprávy předávané ve 2. fázi hry}
+V druhé fázi hry se uživatel nachází, pokud klient úspěšné prošel
+první fází (tzn. připojil se k serveru, úspěšně
+ navázal spojení se serverem a odeslal přezdívku). V druhé fázi
+si uživatel typicky vybírá herní místnost, k níž se připojí.
+Do této fáze se řadí i vytvoření nové herní místnosti.
+V dané fázi jsou za validní považovány pouze tři typy zpráv.
+
+\subsubsection{Zpráva s délkou 13B končící "0" - připojení k existující hře}
+Pokud klient pošle zprávu o délce 13B, je považována
+za validní a předpokládá se, že obsahuje název místnosti, ke které
+se chce klient připojit (10 znaků) a za ní "0". Poslední
+znak serveru říká, že hra by již měla být vytvořena a nemá se pokoušet
+o její založení.
+
+Požadavky: název herní místnosti musí být bez diakritiky a nesmí obsahovat
+znak procenta.
+
+Formát zprávy: "\#xxxxxxxxxx0?", kde x = písmeno obsažené v názvu místnosti
+
+Odpověď serveru:
+\begin{itemize}
+\item SERVER\_WRITE\_RECEIVED\_OK ("\#99?") = hra existuje, uživatel připojen => 3. fáze hry
+\item SERVER\_WRITE\_RECEIVED\_FAIL ("\#98?") = zpráva od klienta je nevalidní, chyba
+\item SERVER\_STAGE2\_WRITE\_ROOM\_DOES\_NOT\_EXIST ("\#96?") = zvolená herní místnost neexistuje
+\item SERVER\_STAGE2\_WRITE\_ROOM\_RUNNING ("\#95?") = ve zvolené místnosti již běží hra, jejíž součástí není daný uživatel
+\end{itemize}
+
+\subsubsection{Zpráva s délkou 13B končící "1" - vytvoření nové hry}
+Pokud klient pošle zprávu o délce 13B, je považována
+za validní a pokud končí "1", předpokládá se, že obsahem zprávy je název
+místnosti, jež chce uživatel založit (10 znaků) a za ní "1". Poslední
+znak značí, že chce uživatel vytvořit novou místnost (ne se připojit k existující).
+
+Požadavky: název herní místnosti musí být bez diakritiky a nesmí obsahovat
+znak procenta.
+
+Formát zprávy: "\#xxxxxxxxxx1?", kde x = písmeno obsažené v názvu místnosti
+
+Odpověď serveru:
+\begin{itemize}
+\item SERVER\_WRITE\_RECEIVED\_OK ("\#99?") = hra úspěšně založena => 3. fáze hry
+\item SERVER\_WRITE\_RECEIVED\_FAIL ("\#98?") = zpráva od klienta je nevalidní, chyba
+\item SERVER\_STAGE2\_WRITE\_ROOM\_EXISTS ("\#97?") = herní místnost s daným názvem již existuje, chyba
+\end{itemize}
+
+\subsubsection{Zpráva s délkou 3B ("\#1?") - získání seznamu herních místností}
+Pokud klient pošle kód SERVER\_STAGE2\_GET\_GAME\_ROOM\_LIST ("\#1?"),
+pak je to chápáno jako požadavek o odeslání seznamu existujících herních místností.
+
+Formát zprávy: "\#1?"
+
+Odpověď serveru:
+\begin{itemize}
+\item zpráva o délce 52B obsahující seznam herních místností (5 místností maximum * 10B pro název místnosti)
+\end{itemize}
+
+\subsection{Zprávy předávané ve 3. fázi hry}
+Ve třetí fázi hry se uživatel nachází, pokud klient úspěšně prošel
+předcházejícími fázemi (tzn. je připojen, odeslal své jméno a nachází se v některé z herních místností).
+V této fázi uživatel čeká v herní místnosti na připojení dalšího hráče - má možnost hru odstartovat,
+či se vrátit do herního lobby. Následuje seznam očekávaných zpráv a možných reakcí na ně.
+
+\subsubsection{Zpráva s délkou 4B ("\#5?") - odstartování hry}
+Pokud klient pošle kód SERVER\_STAGE3\_START\_GAME ("\#5?") je tato zpráva
+požadována za validní požadavek o start hry uvnitř herní místnosti, v níž se daný hráč nachází.
+
+Formát zprávy: "\#5?"
+
+Odpověď serveru:
+\begin{itemize}
+\item SERVER\_WRITE\_RECEIVED\_OK ("\#99?") = požadavek na start hry přijat => 4. fáze hry
+\item SERVER\_WRITE\_RECEIVED\_FAIL ("\#98?") = zpráva od klienta je nevalidní, chyba
+\item SERVER\_STAGE3\_WRITE\_GAME\_CANNOT\_START ("\#11?") = v místnosti je pouze jeden hráč, chyba
+\end{itemize}
+
+
+\subsubsection{Zpráva s délkou 4B ("\#6?") - návrat do lobby}
+Pokud klient pošle kód SERVER\_STAGE3\_BACK\_LOBBY ("\#6?") je tato zpráva
+požadována za validní požadavek o návrat do lobby. Po zpracování
+takové zprávy je klient přesunut zpět do fáze 2.
+
+Formát zprávy: "\#6?"
+
+Odpověď serveru:
+\begin{itemize}
+\item SERVER\_WRITE\_RECEIVED\_OK ("\#99?") = požadavek na přesun do lobby přijat
+\end{itemize}
+
+\subsubsection{Zpráva s délkou 4B ("\#7?") - zjištění stavu hry}
+Pokud klient pošle kód SERVER\_STAGE3\_GAME\_STATE ("\#7?"),
+dojde k vyhodnocení stavu hry uvnitř herní místnost (hra běží / neběží).
+Tento kód je klienty odesílán v periodickém čas. intervalu a klienti tak zjišťují,
+zda již byla hra odstartována, či nikoliv.
+
+Formát zprávy: "\#7?"
+
+Odpověď serveru:
+\begin{itemize}
+\item SERVER\_WRITE\_RECEIVED\_OK ("\#99?") = server obdržel zprávu, hra neběží
+\item SERVER\_STAGE3\_WRITE\_GAME\_STARTED ("\#10?") = server obdržel zprávu, hra byla spuštěna => 3. fáze hry
+\end{itemize}
+
+\subsection{Zprávy předávané ve 4. fázi hry}
+Ve čtvrté fázi hry se uživatel nachází, pokud klient prošel všemi předcházejícími fázemi (tzn. připojen,
+odeslal přezdívku, vybral místnost a někdo odstartoval hru). Takový hráč se tedy typicky nachází uvnitř některé z herních místností
+a jsou od něj očekávány následující zprávy.
+
+\subsubsection{Zpráva s délkou 4B ("\#50?") - získání jmen hráčů}
+Na požadavek SERVER\_STAGE4\_GET\_PLAYER\_NAMES ("\#50?") server
+zareaguje odesláním přezdívek hráčů, jež se nacházejí v herní místnosti společně
+s hráčem, který tuto zprávu odeslal.
+
+Formát zprávy: "\#50?"
+
+Odpověď serveru:
+\begin{itemize}
+\item zpráva o délce 47B obsahující jména hráčů, jež se nacházejí v dané herní místnosti (3 hráči maximum * 15B pro jednu přezdívku)
+\end{itemize}
+
+\subsubsection{Zpráva s délkou 4B ("\#51?") - získání přidělených karet}
+Při příchodu kódu SERVER\_STAGE4\_GET\_CARDS ("\#51?") server
+odešle seznam karet, které má uživatel přidělen. Pokud zpráva přijde od hráče,
+který se do místnosti nově připojil, předchází odeslání seznamu karet ještě přidělení náhodných karet uživateli.
+
+Seznam obsahuje pouze "0" (pokud karta, jež odpovídá danému indexu nebyla přidělena) a "1" (pokud byla přidělena). Indexy pole s kartami jsou shodné pro obě strany - server i klient. Indexy pole karet - viz další kapitola.
+
+Formát zprávy: "\#51?"
+
+Odpověď serveru:
+\begin{itemize}
+\item zpráva o délce 34B reprezentující karty přidělené uživateli
+\end{itemize}
+
+\subsubsection{Zpráva s délkou 4B ("\#01?" - "\#44?") - použití přidělené karty}
+Kódy v rozmezí "\#01?" - "\#44?" jsou chápány jako identifikační kódy karet a příchod takového
+kódu je ze strany serveru chápán jako pokus o použití karty ve hře.
+
+Kódy "\#01?" - "\#32?" jsou přiřazeny běžným kartám (32 karet v balíčku), zbývající kódy
+jsou pak v rámci aplikace vyhrazeny pro další potřebné informace o kartě, kterou chce
+uživatel umístit. Kódy "\#33?" - "\#44?" jsou tedy ze strany klienta odeslány, pokud
+chce uživatel umístit kartu, jejíž efekt nemusí být ze vzhledu karty patrný => jedná se o "měniče".
+Uživatel může chtít umístit například červeného měniče a přitom změnit barvu
+na zelenou - v takovém připadě by byl např. odeslán kód "\#37?". Kompletní
+seznam kódu karet je dostupný níže.
+
+Nejprve je zkontrolována platnost daného úkonu (zejména zjištění, zda je možno
+danou kartu umístit na předchozí). Následně se zkontroluje, zda je odesílatel na tahu.
+Závěrem proběhne kontrola, zda uživatel danou kartu opravdu vlastnil (tzn. byla mu serverem přidělena a nejedná se o podvodníka).
+Od výsledku těchto kontrol se odvíjí odpověď serveru.
+
+Formát zprávy: "\#xx?", kde xx = číslo příslušné karty
+
+
+Kódové označení karet:
+\begin{itemize}
+\item "(\#01?") = koule 7
+\item "(\#02?") = koule 8
+\item "(\#03?") = koule 9
+\item "(\#04?") = koule 10
+\item "(\#05?") = koule spodek
+\item "(\#06?") = koule menic
+\item "(\#07?") = koule kral
+\item "(\#08?") = koule eso
+\item "(\#09?") = cervena 7
+\item "(\#10?") = cervena 8
+\item "(\#11?") = cervena 9
+\item "(\#12?") = cervena 10
+\item "(\#13?") = cervena spodek
+\item "(\#14?") = cervena menic
+\item "(\#15?") = cervena kral
+\item "(\#16?") = cervena eso
+\item "(\#17?") = zelena 7
+\item "(\#18?") = zelena 8
+\item "(\#19?") = zelena 9
+\item "(\#20?") = zelena 10
+\item "(\#21?") = zelena spodek
+\item "(\#22?") = zelena menic
+\item "(\#23?") = zelena kral
+\item "(\#24?") = zelena eso
+\item "(\#25?") = zaludy 7
+\item "(\#26?") = zaludy 8
+\item "(\#27?") = zaludy 9
+\item "(\#28?") = zaludy 10
+\item "(\#29?") = zaludy spodek
+\item "(\#30?") = zaludy menic
+\item "(\#31?") = zaludy kral
+\item "(\#32?") = zaludy eso
+\item "(\#33?") = koule měnič => červená
+\item "(\#34?") = koule měnič => zelená
+\item "(\#35?") = koule měnič => žaludy
+\item "(\#36?") = červená měnič => koule
+\item "(\#37?") = červená měnič => zelená
+\item "(\#38?") = červená měnič => žaludy
+\item "(\#39?") = zelená měnič => koule
+\item "(\#40?") = zelená měnič => červená
+\item "(\#41?") = zelená měnič => žaludy
+\item "(\#42?") = žaludy měnič => koule
+\item "(\#43?") = žaludy měnič => červená
+\item "(\#44?") = žaludy měnič => zelená
+\end{itemize}
+
+Odpověď serveru:
+\begin{itemize}
+\item SERVER\_WRITE\_RECEIVED\_OK ("\#99?") = karta úspěšně umístěna
+\item SERVER\_WRITE\_RECEIVED\_FAIL ("\#98?") = zpráva od klienta je nevalidní, chyba
+\item SERVER\_STAGE4\_WRITE\_CANNOT\_PLACE ("\#69?") = daná karta nemůže být umístěna na předchozí, chyba
+\item SERVER\_STAGE4\_WRITE\_NOT\_TURN\_PLACE ("\#68?") = odesílatel není na tahu, chyba
+\item SERVER\_STAGE4\_MUST\_TAKE\_1\_CARDS ("\#67?") = uživatel si musí vzít 1 kartu (umístěna karta 7), chyba
+\item SERVER\_STAGE4\_MUST\_TAKE\_2\_CARDS ("\#66?") = uživatel si musí vzít 2 karty (umístěna karta 7), chyba
+\item SERVER\_STAGE4\_MUST\_TAKE\_3\_CARDS ("\#65?") = uživatel si musí vzít 3 karty (umístěna karta 7), chyba
+\item SERVER\_STAGE4\_MUST\_TAKE\_4\_CARDS ("\#64?") = uživatel si musí vzít 4 karty (umístěna karta 7), chyba
+\item SERVER\_STAGE4\_MUST\_TAKE\_5\_CARDS ("\#63?") = uživatel si musí vzít 5 karet (umístěna karta 7), chyba
+\item SERVER\_STAGE4\_MUST\_TAKE\_6\_CARDS ("\#62?") = uživatel si musí vzít 6 karet (umístěna karta 7), chyba
+\item SERVER\_STAGE4\_MUST\_TAKE\_7\_CARDS ("\#61?") = uživatel si musí vzít 7 karet (umístěna karta 7), chyba
+\item odpojení klienta od serveru = pokud použita jakákoliv karta, jež uživatel nemá přidělenou -> pokus o hack serveru
+\end{itemize}
+
+\subsubsection{Zpráva s délkou 4B ("\#45?") - vynechání kola / žádost o kartu}
+Pokud přijde kód SERVER\_STAGE4\_TAKE\_STAND ("\#45?") server jej
+vyhodnotí jako:
+\begin{itemize}
+\item a) žádost o vynechání kola - pokud je aktuální kartou eso, uživatel "stojí"
+\item b) žádost o novou kartu - uživateli přidělena další karta z balíčku dostupných karet
+\end{itemize}
+
+Formát zprávy: "\#45?"
+
+Odpověď serveru:
+\begin{itemize}
+\item kód karty ("\#0?" - "\#31?") = karta přidělena, pořadí přidělené karty v seznamu kódů karet, úspěch
+\item SERVER\_WRITE\_RECEIVED\_FAIL ("\#98?") = zpráva od klienta je nevalidní, chyba
+\item SERVER\_STAGE4\_WRITE\_NOT\_TURN\_TAKE ("\#79?") = karta nebyla přidělena, uživatel není na tahu, chyba
+\item SERVER\_STAGE4\_WRITE\_NO\_FREE\_CARDS ("\#78?") = karta nebyla přidělena, v balíčku nejsou žádné volné karty, chyba
+\end{itemize}
+
+\subsubsection{Zpráva s délkou 3B ("\#0?") - žádost o stav hry}
+Na kód SERVER\_PING\_CHAR ("\#0?") server reaguje odesláním zprávy velikosti 6B ve formátu XYYZ,
+kde:
+
+\begin{itemize}
+\item X = pořadí hráče, jež je aktuálně na tahu (v rámci herní místnosti)
+\item YY = kódové označení aktuální karty ("\#01?" - "\#44?") NEBO "\#45?" - pokud uživatel "stojí" / bere si další kartu
+\item Z = pokud umístěná karta "platí" na dalšího uživatele (např. eso) - "\#1?" pokud aktivní, jinak "\#0?"
+\end{itemize}
+
+Zasílání tohoto kódu je klientem prováděno periodicky, aby byl vždy obeznámen s aktuálním stavem hry.
+
+Formát zprávy: "\#0?" 
+
+Odpověď serveru:
+\begin{itemize}
+\item zpráva velikosti 6B, specifikace viz výše 
+\end{itemize}
+
+\subsubsection{Zpráva s délkou 4B ("\#52?") - žádost o návrat do lobby}
+Pokud klient pošle kód SERVER\_STAGE4\_BACK\_LOBBY ("\#52?") je tato zpráva
+požadována za validní požadavek o návrat do lobby. Po zpracování
+takové zprávy je klient přesunut zpět do fáze 2.
+
+Formát zprávy: "\#52?"
+
+Odpověď serveru:
+\begin{itemize}
+\item SERVER\_WRITE\_RECEIVED\_OK ("\#99?") = požadavek na přesun do lobby přijat => 2. fáze hry
+\item SERVER\_WRITE\_RECEIVED\_FAIL ("\#98?") = zpráva od klienta je nevalidní, chyba
+\end{itemize}
+
+\section{Server}
+\subsection{Technologie využité během vývoje}
+Serverová část aplikace byla vytvořena v nízkoúrovňovém jazyce C.
+Vývoj probíhal zejména ve vývojovém prostředí CLion, jež bylo spuštěno v rámci Linuxového operačního
+systému Ubuntu.
+
+\subsection{Požadavky pro spuštění}
+Vzhledem k volbě jazyka je pro překlad programu nutno mít
+na cílovém zařízení, na němž má být server spuštěn, nainstalovano GCC či jiný překladač
+schopný přeložit zdrojové soubory jazyka C. Požadavky na výkon procesoru
+a velikost paměti RAM jsou v případě mojí aplikace zanedbatelné, 
+s jejím spuštěním by neměl mít problém žádný moderní PC. Je však
+nutno poznamenat, že požadavky na výkon rostou s počtem
+připojených klientů a pokud bychom chtěli server reálně nasadit, musíme počítat
+s obsluhou tisíců klientů a výkonný hardware by byl v takovém případě
+nevyhnutelný. Testování serveru probíhalo zejména na následující konfiguraci: 
+12GB RAM, i5-5200U (mobilní CPU), Ubuntu. Server byl při testování na daném stroji stabilní
+a nevykazoval známky zahlcení ze strany klientů (rychlé reakce na zprávy klientů atp.).
+
+\subsection{Reakce na zprávy od klienta}
+Informace o aktuální fázi je pro server důležitá,
+jelikož od aktuální fáze hráče se odvíjí reakce serveru
+na zprávu daného uživatele. Pokud je daná zpráva validní, 
+server patřičně zareaguje (dle protokolu - viz výše).
+V případě nevalidní zprávy je reakce predikovatelná, klient je zkrátka odpojen.
+
+\subsection{Popis struktur použitých v rámci aplikace}
+Zdrojový kód serverové části aplikace disponuje dostatečným množstvím komentářů a proto nepovažuji za
+vhodné popisovat jednotlivé struktury v rámci této dokumentace.
+
+
+\section{Klient}
+\subsection{Technologie využité během vývoje}
+Klient byl (dle požadavků) vytvořen ve vysokoúrovňovém jazyce Java.
+Vývoj probíhal zejména ve vývojovém prostředí IntelliJ IDEA, jež bylo spuštěno v rámci Linuxového operačního
+systému Ubuntu.
+
+\subsection{Požadavky pro spuštění}
+Na cílovém zařízení je potřeba mít nainstalovanou Javu minimálně ve verzi 11. Je možno použít verzi od firmy Oracle, či volně dostupnou OpenJDK. Systémové
+požadavky klienta jsou minimální a v dnešní době s během klienta nebude mít problém prakticky žádné zařízení. Nejslabší PC, na kterém
+byl klient testován disponovalo následující konfigurací: Intel Atom z3735f, 1GB RAM. Jelikož jsem během provozování klienta
+na zmíněné konfiguraci nepozorval žádné problémy, troufám si tvrdit, že je poměrně dobře optimalizovaný.
+
+Rychlost odezvy klienta je dána zejména tím, že téměr veškeré výpočty, jež program koná (náhodný výběr karet, atp.), jsou vykonávány na straně serveru.
+
+\subsection{Zasílání zpráv serveru}
+Použití mnou vytvořeného klienta hráči zaručí, že na server budou odeslány pouze validní zprávy a při hraní by tak neměl narazit na žádný problém.
+Zasílány jsou zprávy z protokolu (viz výše). I přes tuto skutečnost jsem se serverem zkoušel komunikovat prostřednictvím terminálu a při jeho použití
+jsem nenarazil na žádný problém.
+
+\subsection{Popis struktur použitých v rámci aplikace}
+Klientská část aplikace, podobně jako server, je opatřena mnoha komentáři (javadoc) a zde tedy nebudu strukturu aplikace rozepisovat.
+
+\chapter{Uživatelská dokumentace}
+Níže je popsán postup, který je nutno provést pro přeložení a následné spuštění serverové i klientské části aplikace (z pohledu uživatele).
+
+\section{Pravidla hry}
+Vzhledem k faktu, že jsem vytvořil hru prší s klasickými pravidly, níže jmenuji pouze základní. Kompletní pravidla lze v případě potřeby nalézt online, např. \href{https://www.tipmag.cz/navod-na-hru-prsi}{zde}.
+
+Pravidla:
+\begin{itemize}
+\item na začátku hry každý hráč dostane čtyři karty
+\item každá karta má určitou hodnotu a barvu, na kartu lze položit pouze kartu se stejnou hodnotou / barvou
+\item pokud hráč nemá kartu, jež by byl schopen vyložit a nemůže "stát" (viz dále), pak si musí vzít další kartu
+\item hráč použije kartu 7 = další hráč musí dát 7 NEBO bere dvě karty
+\item hráč použije eso = další hráč musí dát eso NEBO "stojí" (nebere si kartu, hraje další v pořadí)
+\item hráč použije měniče = další hráč musí dát měniče NEBO kartu s barvou, na níž měnič změnil
+\item hra končí, pokud jeden z hráčů již nemá žádné karty - takový hráč je vítěz
+\end{itemize}
+
+\section{Herní klient}
+K překladu a spuštění je potřeba mít nainstalovanou Javu ve verzi 11. Překlad lze provést příkazem "make", jež bude proveden v rámci adresáře s klientskou částí aplikace.
+Následné spuštění pak lze provést pomocí příkazu "make run".
+
+\section{Server}
+K překladu ja potřeba mít nainstalovaný překladač jazyka C. Překlad lze provést příkazem "make", jež bude proveden v rámci adresáře se serverovou částí aplikace.
+Následné spuštění pak lze provést pomocí příkazu "./gameserver xxxxx", kde x = číslo portu, na kterém server poběží.
+
+\chapter{Závěr}
+\section{Funkčnost programu a jeho přínos}
+Funkčnost programu jsem ověřil a pracuje dle očekávání. Jednalo se o první semestrální práci, v rámci níž jsem řešil síťovou komunikaci. Díky tomuto faktu
+došlo k rozšíření mých znalostí v rámci jazyka Java i C.
+
+\section{Zhodnocení zadání}
+Zadání úlohy se mi zpočátku zdálo velice triviální, ale nakonec se ukázalo, že naprogramování této úlohy vyžaduje nastudování několika algoritmů, z nichž některé jsou,
+minimálně pro začátečníka v jazyce C, poměrně náročné na implementaci.
+Po prostudování algoritmů (spojených zejména se síť. komunikací) a vyřešení několika drobných problémů se mi však úlohu podařilo vyřešit.
+
+\end{document}
